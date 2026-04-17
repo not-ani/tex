@@ -1,19 +1,25 @@
+import type {
+  TexSessionOpenResult,
+  TexSessionSnapshot,
+  TexSessionUpdateArgs
+} from "@tex/editor";
+
 export const APP_NAME = "Tex";
 export const APP_DESCRIPTION =
   "A desktop-first writing workspace for debate prep, speech drafting, and structured rebuttal work.";
 
-export const DEFAULT_EDITOR_DOCUMENT = `Resolved: This workspace is the right starting point.
-
-Observation one: the repo now matches the desktop-first stack from the T3 reference.
-Observation two: the renderer is React running through Vite, not a web framework detour.
-Observation three: Electron owns the shell so local files, shortcuts, and native flows can grow naturally.
-
-Contention:
-1. Use this document area as the drafting surface for speeches and blocks.
-2. Grow the shared contracts package whenever the preload bridge or desktop APIs expand.
-3. Keep the desktop and renderer coupled through types, not ad hoc strings.`;
-
 export type ThemePreference = "system" | "light" | "dark";
+export type DesktopUpdateStatus =
+  | "disabled"
+  | "idle"
+  | "checking"
+  | "up-to-date"
+  | "available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+export type DesktopRuntimeArch = "arm64" | "x64" | "other";
+export type DesktopUpdateChannel = "latest" | "nightly";
 
 export interface AppInfo {
   name: string;
@@ -22,9 +28,52 @@ export interface AppInfo {
   channel: "browser" | "desktop";
 }
 
+export interface DesktopRuntimeInfo {
+  hostArch: DesktopRuntimeArch;
+  appArch: DesktopRuntimeArch;
+  runningUnderArm64Translation: boolean;
+}
+
+export interface DesktopUpdateState extends DesktopRuntimeInfo {
+  enabled: boolean;
+  status: DesktopUpdateStatus;
+  channel: DesktopUpdateChannel;
+  currentVersion: string;
+  availableVersion: string | null;
+  downloadedVersion: string | null;
+  downloadPercent: number | null;
+  checkedAt: string | null;
+  message: string | null;
+  errorContext: "check" | "download" | "install" | null;
+  canRetry: boolean;
+}
+
+export interface DesktopUpdateActionResult {
+  accepted: boolean;
+  completed: boolean;
+  state: DesktopUpdateState;
+}
+
+export interface DesktopUpdateCheckResult {
+  checked: boolean;
+  state: DesktopUpdateState;
+}
+
 export interface DesktopBridge {
   isDesktop(): boolean;
   getAppInfo(): Promise<AppInfo>;
   setTheme(theme: ThemePreference): Promise<void>;
   openExternal(url: string): Promise<void>;
+  getUpdateState(): Promise<DesktopUpdateState>;
+  setUpdateChannel(channel: DesktopUpdateChannel): Promise<DesktopUpdateState>;
+  checkForUpdate(): Promise<DesktopUpdateCheckResult>;
+  downloadUpdate(): Promise<DesktopUpdateActionResult>;
+  installUpdate(): Promise<DesktopUpdateActionResult>;
+  onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
+  pickOpenDocument(): Promise<string | null>;
+  pickCreateDocument(defaultName?: string): Promise<string | null>;
+  openSessionFromFile(filePath: string): Promise<TexSessionOpenResult>;
+  createSessionAtPath(filePath: string): Promise<TexSessionOpenResult>;
+  updateSession(args: TexSessionUpdateArgs): Promise<TexSessionSnapshot>;
+  saveSession(sessionId: string): Promise<TexSessionSnapshot>;
 }

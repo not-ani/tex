@@ -1,5 +1,5 @@
 {
-  "name": "@tex/contracts",
+  "name": "@tex/editor",
   "private": true,
   "version": "0.1.0",
   "files": ["dist"],
@@ -22,7 +22,12 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@tex/editor": "workspace:*"
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-history": "^1.4.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.3",
+    "prosemirror-state": "^1.4.3",
+    "prosemirror-view": "^1.41.3"
   },
   "devDependencies": {
     "tsdown": "^0.20.3",

@@ -1,5 +1,5 @@
 {
-  "name": "@tex/contracts",
+  "name": "@tex/session-node",
   "private": true,
   "version": "0.1.0",
   "files": ["dist"],
@@ -22,9 +22,12 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@tex/editor": "workspace:*"
+    "@tex/editor": "workspace:*",
+    "@xmldom/xmldom": "^0.8.10",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
+    "@types/node": "^22.15.3",
     "tsdown": "^0.20.3",
     "typescript": "5.9.2"
   }

@@ -1,0 +1,230 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel"
+        required: true
+        default: nightly
+        type: choice
+        options:
+          - latest
+          - nightly
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      channel: ${{ steps.meta.outputs.channel }}
+      tag: ${{ steps.meta.outputs.tag }}
+      name: ${{ steps.meta.outputs.name }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      make_latest: ${{ steps.meta.outputs.make_latest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+
+      - id: meta
+        shell: bash
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require("node:fs");
+          const pkg = JSON.parse(fs.readFileSync("apps/desktop/package.json", "utf8"));
+          const eventName = process.env.GITHUB_EVENT_NAME;
+          const refName = process.env.GITHUB_REF_NAME || "";
+          const runNumber = process.env.GITHUB_RUN_NUMBER || "0";
+          const dispatchChannel = process.env.DISPATCH_CHANNEL || "";
+
+          const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          let version;
+          let channel;
+          let tag;
+
+          if (eventName === "push" && refName.startsWith("v")) {
+            version = refName.slice(1);
+            channel = /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
+            tag = refName;
+          } else {
+            channel = dispatchChannel === "latest" ? "latest" : "nightly";
+            if (channel === "nightly") {
+              version = `${pkg.version}-nightly.${today}.${runNumber}`;
+              tag = `nightly-v${version}`;
+            } else {
+              version = pkg.version;
+              tag = `v${version}`;
+            }
+          }
+
+          const prerelease = channel === "nightly" || version.includes("-");
+          const makeLatest = channel === "latest" && !version.includes("-");
+          const name = channel === "nightly" ? `Tex Nightly ${version}` : `Tex ${version}`;
+
+          console.log(`version=${version}`);
+          console.log(`channel=${channel}`);
+          console.log(`tag=${tag}`);
+          console.log(`name=${name}`);
+          console.log(`prerelease=${prerelease}`);
+          console.log(`make_latest=${makeLatest}`);
+          NODE
+        env:
+          DISPATCH_CHANNEL: ${{ inputs.channel }}
+
+  build:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+          - os: macos-latest
+            platform: mac
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: bun install --frozen-lockfile
+
+      - name: Set desktop app version
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = "apps/desktop/package.json";
+          const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+          pkg.version = process.env.APP_VERSION;
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+          NODE
+        env:
+          APP_VERSION: ${{ needs.preflight.outputs.version }}
+
+      - run: bun run build:desktop
+
+      - name: Build desktop artifacts
+        shell: bash
+        working-directory: apps/desktop
+        run: bunx electron-builder --config electron-builder.config.mjs --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: not-ani/tex
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          shopt -s nullglob
+
+          for pattern in \
+            "apps/desktop/dist-packages/*.dmg" \
+            "apps/desktop/dist-packages/*.zip" \
+            "apps/desktop/dist-packages/*.AppImage" \
+            "apps/desktop/dist-packages/*.exe" \
+            "apps/desktop/dist-packages/*.blockmap" \
+            "apps/desktop/dist-packages/*.yml"; do
+            for file in $pattern; do
+              cp "$file" release-assets/
+            done
+          done
+
+          if [[ "${{ matrix.platform }}" == "mac" && "${{ matrix.arch }}" != "arm64" ]]; then
+            for manifest in release-assets/*-mac.yml; do
+              mv "$manifest" "${manifest%.yml}-${{ matrix.arch }}.yml"
+            done
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  release:
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Flatten artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-publish
+          find release-artifacts -type f -maxdepth 2 -exec cp {} release-publish/ \;
+
+      - name: Merge mac updater manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for secondary in release-publish/*-mac-x64.yml; do
+            primary="${secondary%-x64.yml}.yml"
+            if [[ -f "$primary" ]]; then
+              node scripts/merge-update-manifests.mjs --platform mac "$primary" "$secondary" "$primary"
+              rm -f "$secondary"
+            fi
+          done
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease_flag=""
+          latest_flag="--latest=false"
+          if [[ "${{ needs.preflight.outputs.prerelease }}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          if [[ "${{ needs.preflight.outputs.make_latest }}" == "true" ]]; then
+            latest_flag="--latest"
+          fi
+
+          gh release create "${{ needs.preflight.outputs.tag }}" release-publish/* \
+            --title "${{ needs.preflight.outputs.name }}" \
+            --notes "Automated release for ${{ needs.preflight.outputs.version }}." \
+            $prerelease_flag \
+            $latest_flag \
+            --target "${GITHUB_SHA}"
