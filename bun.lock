@@ -15,15 +15,15 @@
     },
     "apps/desktop": {
       "name": "@tex/desktop",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "@tex/session-node": "workspace:*",
-        "electron": "40.6.0",
         "electron-updater": "^6.6.2",
       },
       "devDependencies": {
         "@tex/contracts": "workspace:*",
         "@types/node": "^22.15.3",
+        "electron": "40.6.0",
         "electron-builder": "^26.0.12",
         "tsdown": "^0.20.3",
         "typescript": "5.9.2",
@@ -31,7 +31,7 @@
     },
     "apps/web": {
       "name": "@tex/web",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "@base-ui/react": "^1.4.0",
         "@fontsource-variable/geist": "^5.2.8",
@@ -63,7 +63,7 @@
     },
     "packages/contracts": {
       "name": "@tex/contracts",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "@tex/editor": "workspace:*",
       },
@@ -74,7 +74,7 @@
     },
     "packages/editor": {
       "name": "@tex/editor",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "prosemirror-commands": "^1.7.1",
         "prosemirror-history": "^1.4.1",
@@ -90,7 +90,7 @@
     },
     "packages/session-node": {
       "name": "@tex/session-node",
-      "version": "0.1.0",
+      "version": "0.0.1",
       "dependencies": {
         "@tex/editor": "workspace:*",
         "@xmldom/xmldom": "^0.8.10",

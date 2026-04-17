@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "@tex/session-node": "workspace:*",
-    "electron": "40.6.0",
     "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "@tex/contracts": "workspace:*",
     "@types/node": "^22.15.3",
+    "electron": "40.6.0",
     "electron-builder": "^26.0.12",
     "tsdown": "^0.20.3",
     "typescript": "5.9.2"
