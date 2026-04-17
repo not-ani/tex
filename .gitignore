@@ -26,6 +26,11 @@ coverage
 out/
 build
 dist
+dist-electron
+apps/*/dist
+apps/*/dist-electron
+packages/*/dist
+*.tsbuildinfo
 
 
 # Debug

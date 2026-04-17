@@ -1,0 +1,26 @@
+{
+  "name": "@tex/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "bun run --parallel dev:bundle dev:electron",
+    "dev:bundle": "tsdown --watch",
+    "dev:electron": "bun run scripts/dev-electron.mjs",
+    "build": "tsdown",
+    "start": "bun run scripts/start-electron.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "electron": "40.6.0"
+  },
+  "devDependencies": {
+    "@tex/contracts": "workspace:*",
+    "@types/node": "^22.15.3",
+    "tsdown": "^0.20.3",
+    "typescript": "5.9.2"
+  },
+  "productName": "Tex"
+}

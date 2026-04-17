@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "computedHash": "873c67922d80775a9fdf596db7964b579f0408c30ec6e3d11989f6055bbec89f"
+    },
+    "turborepo": {
+      "source": "vercel/turborepo",
+      "sourceType": "github",
+      "computedHash": "f90716c4e0ab85f6f868bb530b58f75a6f678cf67a0331cd1cd69d63f4c77360"
+    }
+  }
+}
